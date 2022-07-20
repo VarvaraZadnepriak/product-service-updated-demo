@@ -1,0 +1,85 @@
+openapi: 3.0.0
+components:
+  schemas:
+    Product:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Product identifier
+        title:
+          type: string
+          description: Product title
+        description:
+          type: string
+          description: Product description
+        price:
+          type: number
+          description: Product price
+        imageUrl:
+          type: string
+          description: Product imageUrl
+    ProductList:
+      type: array
+      items:
+        $ref: '#/components/schemas/Product'
+    ServiceError:
+      type: object
+      properties:
+        statusCode:
+          type: number
+          description: Status code of error
+        message:
+          type: string
+          description: Error message
+info:
+  title: ''
+  description: ''
+  version: 51372b9e-c411-4011-b660-660062d40d8a
+paths:
+  '/products/{productId}':
+    get:
+      operationId: getProduct
+      description: Get product by productId
+      parameters:
+        - name: productId
+          in: path
+          description: Product identifier
+          required: true
+      responses:
+        '200':
+          description: Status 200 Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '404':
+          description: Status 404 Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceError'
+        '500':
+          description: Status 500 Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceError'
+  /products:
+    get:
+      operationId: getProducts
+      description: Get all products
+      parameters: []
+      responses:
+        '200':
+          description: Status 200 Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductList'
+        '500':
+          description: Status 500 Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceError'
