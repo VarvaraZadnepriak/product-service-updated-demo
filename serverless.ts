@@ -93,8 +93,27 @@ const serverlessConfiguration: AWS = {
     name: 'aws',
     runtime: 'nodejs16.x',
     stage: 'dev',
-    region: 'eu-west-1',
+    region: 'us-east-1',
     profile: 'aws-task',
+    httpApi: {
+      cors: true,
+      authorizers: {
+          httpApiRequestAuthorizer: {
+            name: 'httpApiRequestAuthorizer',
+            functionArn: 'arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:custom-authorizer-demo-dev-httpApiRequestAuthorizer',
+            type: 'request',
+            enableSimpleResponses: true,
+            payloadVersion: '2.0',
+        },
+        httpApiJwtAuthorizer: {
+          type: 'jwt',
+          name: 'httpApiJwtAuthorizer',
+          identitySource: '$request.header.Authorization',
+          issuerUrl: 'https://cognito-idp.${self:provider.region}.amazonaws.com/us-east-1_4Hbt2KG4N',
+          audience: '17dttsrlruhr7v688d53j2p9s'
+        }
+      }
+    },
     apiGateway: {
       minimumCompressionSize: 1024,
       shouldStartNameWithService: true,
@@ -109,34 +128,56 @@ const serverlessConfiguration: AWS = {
       handler: 'src/handler.getProduct',
       events: [
         {
+          /* REST API */
+          /* type: IAM */
           http: {
             method: 'get',
-            path: '/products/{productId}',
+            path: '/rest/iam/products/{productId}',
             cors: true,
-            documentation: {
-              description: 'Get product by productId',
-              pathParams: [{
-                name: 'productId',
-                description: 'Product identifier'
-              }],
-              methodResponses: [{
-                statusCode: '200',
-                responseModels: {
-                  'application/json': 'Product'
-                }
-              }, {
-                statusCode: '404',
-                responseModels: {
-                  'application/json': 'ServiceError'
-                }
-              }, {
-                statusCode: '500',
-                responseModels: {
-                  'application/json': 'ServiceError'
-                }
-              }]
-            }
-          } as any
+            authorizer: 'aws_iam'
+          },
+        },
+        {
+          /* REST API */
+          /* type: Custom authorizer - token */
+          http: {
+            method: 'get',
+            path: 'rest/token/products/{productId}',
+            cors: true,
+            authorizer: {
+              arn: 'arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:custom-authorizer-demo-dev-restApiTokenAuthorizer',
+              type: 'token',
+              resultTtlInSeconds: 0, // Default 300 seconds
+              // identitySource: 'method.request.header.Authorization', // Another header can be chosen
+              // identityValidationExpression: '^Bearer [-0-9a-zA-Z._]*$', // Regex to check header value before calling custom authorizer
+            },
+          }
+        },
+        {
+          /* REST API */
+          /* type: Custom authorizer - request */
+          http: {
+            method: 'get',
+            path: 'rest/request/products/{productId}',
+            cors: true,
+            authorizer: {
+              arn: 'arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:custom-authorizer-demo-dev-restApiTokenAuthorizer',
+              type: 'request',
+              resultTtlInSeconds: 0, // Default 300 seconds
+            },
+          }
+        },
+        {
+          /* REST API */
+          /* type: Cognito user pool */
+          http: {
+            method: 'get',
+            path: 'rest/cognito/products/{productId}',
+            authorizer: {
+              arn: 'arn:aws:cognito-idp:${self:provider.region}:${aws:accountId}:userpool/us-east-1_4Hbt2KG4N',
+              // scopes: ['openid, 'custom-scope']
+            },
+          }
         }
       ]
     },
@@ -144,28 +185,40 @@ const serverlessConfiguration: AWS = {
       handler: 'src/handler.getProducts',
       events: [
         {
-          http: {
+          /* HTTP API */
+          /* type: iam */
+          httpApi: {
             method: 'get',
-            path: '/products',
-            cors: true,
-            documentation: {
-              description: 'Get all products',
-              methodResponses: [{
-                statusCode: '200',
-                responseModels: {
-                  'application/json': 'ProductList'
-                }
-              }, {
-                statusCode: '500',
-                responseModels: {
-                  'application/json': 'ServiceError'
-                }
-              }]
+            path: '/http/iam/products',
+            authorizer: {
+              type: 'aws_iam'
             }
-          } as any
-        }
+          }
+        },
+        {
+          /* HTTP API */
+          /* type: request */
+          httpApi: {
+            method: 'get',
+            path: '/http/request/products',
+            authorizer: {
+              name: 'httpApiRequestAuthorizer'      
+            }
+          }
+        },
+        {
+          /* HTTP API */
+          /* type: jwt */
+          httpApi: {
+            method: 'get',
+            path: '/http/jwt/products',
+            authorizer: {
+              name: 'httpApiJwtAuthorizer'      
+            }
+          }
+        },
       ]
-    }
+    },
   },
   package: { individually: true },
 };
